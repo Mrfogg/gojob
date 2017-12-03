@@ -22,7 +22,7 @@ type Gojob struct {
 	nodeName string
 }
 
-func NewGoJobByEtcd(client *clientv3.Client, key string, nodeName string) (*Gojob, error) {
+func NewGoJobByEtcd(client *clientv3.Client, prefix string, nodeName string) (*Gojob, error) {
 	op := &HTTPPoolOptions{
 		Replicas: 20,
 	}
@@ -30,7 +30,7 @@ func NewGoJobByEtcd(client *clientv3.Client, key string, nodeName string) (*Gojo
 	if err != nil {
 		return nil, err
 	}
-	hp := newHTTPPoolOpts(key, nodeName, op, etcd)
+	hp := newHTTPPoolOpts(prefix, nodeName, op, etcd)
 	return &Gojob{httpPool: hp, cr: cron.New(), jobs: make(map[string]*jobCron), nodeName: nodeName}, nil
 }
 

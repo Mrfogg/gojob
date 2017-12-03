@@ -4,7 +4,8 @@ import (
 	"gojob/consistenthash"
 	"sync"
 	"time"
-	"truxing/commons/log"
+
+	"log"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 )
@@ -39,7 +40,7 @@ type HTTPPoolOptions struct {
 
 var httpPoolMade bool
 
-func newHTTPPoolOpts(key string, nodeName string, o *HTTPPoolOptions, et *etcdDb) *HTTPPool {
+func newHTTPPoolOpts(prefix string, nodeName string, o *HTTPPoolOptions, et *etcdDb) *HTTPPool {
 	if httpPoolMade {
 		panic("fame_collect: NewHTTPPool must be called only once")
 	}
@@ -47,7 +48,7 @@ func newHTTPPoolOpts(key string, nodeName string, o *HTTPPoolOptions, et *etcdDb
 
 	p := &HTTPPool{
 		etcdDb:   et,
-		key:      key,
+		key:      prefix,
 		nodeName: nodeName,
 	}
 	if o != nil {
@@ -76,7 +77,7 @@ func (p *HTTPPool) set() {
 		p.mu.Lock()
 		if c.Events[0].Type == mvccpb.PUT {
 			p.peers.Add(string(c.Events[0].Kv.Key))
-			log.Debugf("put node %s", c.Events[0].Kv.Key)
+			log.Printf("put node %s", c.Events[0].Kv.Key)
 		}
 		if c.Events[0].Type == mvccpb.DELETE {
 			p.peers = consistenthash.New(p.opts.Replicas, p.opts.HashFn)
@@ -84,7 +85,7 @@ func (p *HTTPPool) set() {
 			for k, _ := range mp {
 				p.peers.Add(k)
 			}
-			log.Debugf("node %s dead", c.Events[0].Kv.Key)
+			log.Printf("node %s dead", c.Events[0].Kv.Key)
 		}
 		p.mu.Unlock()
 	}
