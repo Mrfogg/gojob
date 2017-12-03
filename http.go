@@ -3,14 +3,12 @@ package gojob
 import (
 	"fmt"
 	"gojob/consistenthash"
+	"os"
 	"sync"
 	"time"
+	"truxing/commons/log"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
-
-	"os"
-	"truxing/commons/libs/etcd"
-	"truxing/commons/log"
 )
 
 const defaultReplicas = 50
@@ -26,7 +24,7 @@ type HTTPPool struct {
 
 	nodes []string
 
-	etcdDb *etcd.EtcdDb
+	etcdDb *etcdDb
 
 	name string
 }
@@ -45,7 +43,7 @@ type HTTPPoolOptions struct {
 
 var httpPoolMade bool
 
-func newHTTPPoolOpts(name string, o *HTTPPoolOptions, et *etcd.EtcdDb) *HTTPPool {
+func newHTTPPoolOpts(name string, o *HTTPPoolOptions, et *etcdDb) *HTTPPool {
 	if httpPoolMade {
 		panic("fame_collect: NewHTTPPool must be called only once")
 	}

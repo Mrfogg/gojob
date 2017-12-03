@@ -1,55 +1,36 @@
 package gojob
 
 import (
-	"errors"
-	"fmt"
 	"sync"
-
-	"gojob/cron"
-	"truxing/commons/conf"
-	"truxing/commons/libs/etcd"
-
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"gojob/cron"
+
+	"github.com/coreos/etcd/clientv3"
 )
+
+type jobCron struct {
+	job    Job
+	conStr string
+}
 
 type Gojob struct {
 	httpPool *HTTPPool
-	jobs     map[string]Job
-	crons    map[string]string
+	jobs     map[string]*jobCron
 	mu       sync.RWMutex
 	cr       *cron.Cron
 }
 
-func NewGoJob(configPath string, key string) (*Gojob, error) {
-	config := make(map[string]interface{})
-	_, err := toml.DecodeFile(configPath, &config)
+func NewGoJobByEtcd(client *clientv3.Client, key string) (*Gojob, error) {
+	op := &HTTPPoolOptions{
+		Replicas: 20,
+	}
+	etcd, err := newEtcd(client)
 	if err != nil {
 		return nil, err
 	}
-	host := config["EtcdHost"]
-	if host == "" {
-		return nil, errors.New("New gojob error:config file do not contain EtcdHost")
-	}
-	op := &HTTPPoolOptions{
-		Replicas: 20,
-	}
-	et, err := etcd.NewEtcd(&conf.DbConfig{Host: fmt.Sprintf("%s", host)})
-	if err != nil {
-		return nil, errors.New("New gojob error:new etcd err " + err.Error())
-	}
-	hp := newHTTPPoolOpts(key, op, et)
-	return &Gojob{httpPool: hp, cr: cron.New(), jobs: make(map[string]Job), crons: make(map[string]string)}, nil
-}
-
-func NewGoJobByEtcd(etcd *etcd.EtcdDb, key string) (*Gojob, error) {
-	op := &HTTPPoolOptions{
-		Replicas: 20,
-	}
-
 	hp := newHTTPPoolOpts(key, op, etcd)
-	return &Gojob{httpPool: hp, cr: cron.New(), jobs: make(map[string]Job), crons: make(map[string]string)}, nil
+	return &Gojob{httpPool: hp, cr: cron.New(), jobs: make(map[string]*jobCron)}, nil
 }
 
 func (g *Gojob) isMyJob(name string) bool {
@@ -62,8 +43,7 @@ func (g *Gojob) isMyJob(name string) bool {
 func (g *Gojob) AddJob(conStr string, j Job) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.jobs[j.GetName()] = j
-	g.crons[j.GetName()] = conStr
+	g.jobs[j.GetName()] = &jobCron{job: j, conStr: conStr}
 	if g.isMyJob(j.GetName()) {
 		if conStr == "" {
 			conStr = "0 */1 * * * ?"
@@ -84,7 +64,6 @@ func (g *Gojob) DeletebyName(name string) {
 	if g.jobs[name] != nil {
 		g.cr.DeleteJobByName(name)
 		delete(g.jobs, name)
-		delete(g.crons, name)
 	}
 }
 
@@ -106,7 +85,7 @@ func (g *Gojob) Update() {
 					g.mu.Unlock()
 				} else {
 					if !g.cr.IsExist(name) {
-						g.cr.AddJob(g.crons[name], g.jobs[name])
+						g.cr.AddJob(g.jobs["name"].conStr, g.jobs[name].job)
 					}
 				}
 			}
