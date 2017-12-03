@@ -97,7 +97,7 @@ func (p *HTTPPool) set() {
 	}
 }
 
-func (p *HTTPPool) PickPeer(key string) string {
+func (p *HTTPPool) pickPeer(key string) string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.peers.IsEmpty() {

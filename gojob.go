@@ -34,7 +34,7 @@ func NewGoJobByEtcd(client *clientv3.Client, key string) (*Gojob, error) {
 }
 
 func (g *Gojob) isMyJob(name string) bool {
-	peer := g.httpPool.PickPeer(name)
+	peer := g.httpPool.pickPeer(name)
 	if peer == g.httpPool.Self {
 		return true
 	}
