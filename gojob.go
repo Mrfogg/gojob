@@ -19,9 +19,10 @@ type Gojob struct {
 	jobs     map[string]*jobCron
 	mu       sync.RWMutex
 	cr       *cron.Cron
+	nodeName string
 }
 
-func NewGoJobByEtcd(client *clientv3.Client, key string) (*Gojob, error) {
+func NewGoJobByEtcd(client *clientv3.Client, key string, nodeName string) (*Gojob, error) {
 	op := &HTTPPoolOptions{
 		Replicas: 20,
 	}
@@ -29,8 +30,8 @@ func NewGoJobByEtcd(client *clientv3.Client, key string) (*Gojob, error) {
 	if err != nil {
 		return nil, err
 	}
-	hp := newHTTPPoolOpts(key, op, etcd)
-	return &Gojob{httpPool: hp, cr: cron.New(), jobs: make(map[string]*jobCron)}, nil
+	hp := newHTTPPoolOpts(key, nodeName, op, etcd)
+	return &Gojob{httpPool: hp, cr: cron.New(), jobs: make(map[string]*jobCron), nodeName: nodeName}, nil
 }
 
 func (g *Gojob) isMyJob(name string) bool {

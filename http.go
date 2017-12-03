@@ -1,9 +1,7 @@
 package gojob
 
 import (
-	"fmt"
 	"gojob/consistenthash"
-	"os"
 	"sync"
 	"time"
 	"truxing/commons/log"
@@ -17,16 +15,14 @@ type HTTPPool struct {
 	Self string
 
 	// opts specifies the options.
-	opts HTTPPoolOptions
-
+	opts  HTTPPoolOptions
 	mu    sync.Mutex
 	peers *consistenthash.Map
 
-	nodes []string
-
 	etcdDb *etcdDb
 
-	name string
+	key      string
+	nodeName string
 }
 
 // HTTPPoolOptions are the configurations of a HTTPPool.
@@ -43,15 +39,16 @@ type HTTPPoolOptions struct {
 
 var httpPoolMade bool
 
-func newHTTPPoolOpts(name string, o *HTTPPoolOptions, et *etcdDb) *HTTPPool {
+func newHTTPPoolOpts(key string, nodeName string, o *HTTPPoolOptions, et *etcdDb) *HTTPPool {
 	if httpPoolMade {
 		panic("fame_collect: NewHTTPPool must be called only once")
 	}
 	httpPoolMade = true
 
 	p := &HTTPPool{
-		etcdDb: et,
-		name:   name,
+		etcdDb:   et,
+		key:      key,
+		nodeName: nodeName,
 	}
 	if o != nil {
 		p.opts = *o
@@ -65,21 +62,17 @@ func newHTTPPoolOpts(name string, o *HTTPPoolOptions, et *etcdDb) *HTTPPool {
 	return p
 }
 func (p *HTTPPool) initPeers() {
-	name, err := os.Hostname()
-	if err != nil {
-		name = time.Now().String()
-	}
-	p.Self = p.name + fmt.Sprintf("%s", name)
+	p.Self = p.key + p.nodeName
 	p.peers = consistenthash.New(p.opts.Replicas, p.opts.HashFn)
 	p.peers.Add(p.Self)
-	mp, _ := p.etcdDb.GetPrefix(p.name)
+	mp, _ := p.etcdDb.GetPrefix(p.key)
 	for k, _ := range mp {
 		p.peers.Add(k)
 	}
 }
 
 func (p *HTTPPool) set() {
-	for c := range p.etcdDb.WatchPrefix(p.name) {
+	for c := range p.etcdDb.WatchPrefix(p.key) {
 		p.mu.Lock()
 		if c.Events[0].Type == mvccpb.PUT {
 			p.peers.Add(string(c.Events[0].Kv.Key))
@@ -87,7 +80,7 @@ func (p *HTTPPool) set() {
 		}
 		if c.Events[0].Type == mvccpb.DELETE {
 			p.peers = consistenthash.New(p.opts.Replicas, p.opts.HashFn)
-			mp, _ := p.etcdDb.GetPrefix(p.name)
+			mp, _ := p.etcdDb.GetPrefix(p.key)
 			for k, _ := range mp {
 				p.peers.Add(k)
 			}

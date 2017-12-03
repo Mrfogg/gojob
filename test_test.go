@@ -10,6 +10,7 @@ import (
 
 var client *clientv3.Client
 
+//初始化etcd client对象
 func init() {
 	var err error
 	client, err = clientv3.New(clientv3.Config{Endpoints: []string{
@@ -20,6 +21,7 @@ func init() {
 	}
 }
 
+//实现job接口
 type testJob struct {
 }
 
@@ -33,12 +35,12 @@ func (t *testJob) Stop() {
 	fmt.Println("test job stop")
 }
 func TestGojob(t *testing.T) {
-	gj, err := NewGoJobByEtcd(client, "test")
+	gj, err := NewGoJobByEtcd(client, "test", "node1")
 	if err != nil {
 		t.Error("new gojob fail")
 	}
-	gj.AddJob("*/5 * * * * ?", new(testJob))
+	gj.AddJob("*/5 * * * * ?", new(testJob)) //cron表达式控制执行时间
 	gj.StartAll()
-	c := make(chan int)
+	c := make(chan int) //这里的作用更是让主协程序挂起等待
 	<-c
 }
