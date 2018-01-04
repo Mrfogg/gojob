@@ -3,7 +3,7 @@ package gojob
 import (
 	"sync"
 	"time"
-
+	"fmt"
 	"gojob/cron"
 
 	"github.com/coreos/etcd/clientv3"
@@ -64,12 +64,12 @@ func (g *Gojob) IsExist(name string) bool {
 func (g *Gojob) DeletebyName(name string) {
 	if g.jobs[name] != nil {
 		g.cr.DeleteJobByName(name)
-		delete(g.jobs, name)
 	}
 }
 
 func (g *Gojob) stopbyName(name string) {
 	g.cr.DeleteJobByName(name)
+	fmt.Println("stop job name is ",name)
 }
 
 //定时检查自己的任务
@@ -79,14 +79,14 @@ func (g *Gojob) Update() {
 		select {
 		case <-timer:
 			for name, _ := range g.jobs {
-				if !g.isMyJob(name) {
+				if !g.isMyJob(name)&&g.cr.IsExist(name) {
 					g.mu.Lock()
 					g.stopbyName(name)
-					delete(g.jobs, name)
 					g.mu.Unlock()
-				} else {
+				} else if g.isMyJob(name){
 					if !g.cr.IsExist(name) {
-						g.cr.AddJob(g.jobs["name"].conStr, g.jobs[name].job)
+						g.cr.AddJob(g.jobs[name].conStr, g.jobs[name].job)
+						fmt.Println("add job name is ",name)
 					}
 				}
 			}
