@@ -6,3 +6,4 @@
 项目github:https://github.com/Mrfogg/gojob
 <h2>使用方式</h2>
 &emsp;&emsp;见test_test.go 如果需要在自己的机器上测试分布式，只需要指定不同的nodename即可。（确保你的机器已经部署了etcd）
+aa
